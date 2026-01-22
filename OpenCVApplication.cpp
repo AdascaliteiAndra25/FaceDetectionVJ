@@ -480,7 +480,7 @@ void computeMeanDevFromHist(int hist_src[MAX_LUV], int hist_dst[MAX_LUV], double
 
 		int T = (int)(max * 0.1);
 
-		printf("T= %d", T);
+		printf("T= %d\n", T);
 
 		double suma = 0;
 		double M_filtrat = 0;
@@ -517,7 +517,7 @@ double med_v = 0, dev_v = 0;
 
 
 
-////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////STATIC
 
 void faceDetectionVJStatic() {
 
@@ -625,15 +625,11 @@ void faceDetectionVJStatic() {
 	std::vector<String> test_files;
 	cv::glob(test_folder, test_files, false);
 
-	double k_factor = 2.5; // Coeficientul k stabilit
-
-	// --- LOGICA DE VALIDARE COMPARATIVĂ (U, V și Combinat) ---
 
 	for (const String& testFilename : file_list) {
 		Mat frame_test = imread(testFilename);
 		if (frame_test.empty()) continue;
 
-		// Creăm 3 clone pentru vizualizare comparativă
 		Mat resU = frame_test.clone();
 		Mat resV = frame_test.clone();
 		Mat resBoth = frame_test.clone();
@@ -653,12 +649,12 @@ void faceDetectionVJStatic() {
 		float k = 2.5;
 
 		for (const auto& face_rect : faces) {
-			// Matrice locale pentru post-procesare
+			
 			Mat maskU = Mat::zeros(face_rect.size(), CV_8UC1);
 			Mat maskV = Mat::zeros(face_rect.size(), CV_8UC1);
 			Mat maskBoth = Mat::zeros(face_rect.size(), CV_8UC1);
 
-			// 1. Clasificare la nivel de pixel 
+			
 			for (int i = 0; i < face_rect.height; ++i) {
 				for (int j = 0; j < face_rect.width; ++j) {
 					uchar u_val = u_channel.at<uchar>(face_rect.y + i, face_rect.x + j);
@@ -676,24 +672,22 @@ void faceDetectionVJStatic() {
 				}
 			}
 
-			// 2. Post-procesare morfologică (aplicată pe toate măștile pentru consistență) 
+		//post procesare
 			Mat element = getStructuringElement(MORPH_RECT, Size(3, 3));
-			// Post-procesare pentru masca U
+	
 			erode(maskU, maskU, element, Point(-1, -1), 1);
 			dilate(maskU, maskU, element, Point(-1, -1), 2);
 			erode(maskU, maskU, element, Point(-1, -1), 1);
 
-			// Post-procesare pentru masca V
 			erode(maskV, maskV, element, Point(-1, -1), 1);
 			dilate(maskV, maskV, element, Point(-1, -1), 2);
 			erode(maskV, maskV, element, Point(-1, -1), 1);
 
-			// Post-procesare pentru masca Combinată (Both)
 			erode(maskBoth, maskBoth, element, Point(-1, -1), 1);
 			dilate(maskBoth, maskBoth, element, Point(-1, -1), 2);
 			erode(maskBoth, maskBoth, element, Point(-1, -1), 1);
 
-			// 3. Colorarea pixelilor verzi pentru fiecare caz în parte
+		
 			for (int i = 0; i < face_rect.height; ++i) {
 				for (int j = 0; j < face_rect.width; ++j) {
 					// Colorare pentru U
@@ -716,11 +710,27 @@ void faceDetectionVJStatic() {
 			rectangle(resV, face_rect, Scalar(255, 0, 255), 2);
 
 			double ratioBoth = (double)countNonZero(maskBoth) / face_rect.area();
-			Scalar colorBoth = (ratioBoth > 0.45) ? Scalar(0, 255, 0) : Scalar(0, 0, 255);
-			rectangle(resBoth, face_rect, colorBoth, 2);
+			double percentage = ratioBoth * 100.0;
+
+			bool isValid = (ratioBoth > 0.45);
+			Scalar colorStatus = isValid ? Scalar(0, 255, 0) : Scalar(0, 0, 255);
+			String label = isValid ? "VALID" : "INVALID";
+
+	
+			rectangle(resBoth, face_rect, colorStatus, 2);
+
+		
+			char text[100];
+			sprintf(text, "%s: %.1f%%", label.c_str(), percentage);
+
+			Point textPos(face_rect.x, face_rect.y - 10);
+			if (textPos.y < 20) textPos.y = face_rect.y + 20;
+
+			putText(resBoth, text, textPos, FONT_HERSHEY_SIMPLEX, 0.6, colorStatus, 2);
+		
 		}
 
-		// Afișarea celor 3 rezultate pentru analiză comparativă
+		
 		imshow("Validare doar canal U", resU);
 		imshow("Validare doar canal V", resV);
 		imshow("Validare COMBINATA (U si V)", resBoth);
@@ -751,9 +761,9 @@ void faceDetectionVJLive() {
 	ColorModel_Init();
 	int framesCaptured = 0;
 	Mat frame;
-	double k_factor = 2.5; // [cite: 204]
+	double k_factor = 2.5; 
 
-	// --- ETAPA 1: ANTRENAMENT LIVE (MANUAL) ---
+	//ANTRENARE
 	printf("MOD ANTRENAMENT: Apasati tasta 'C' pentru a capta un cadru, 'ESC' pentru a anula.\n");
 
 	while (cap.read(frame)) {
@@ -768,7 +778,7 @@ void faceDetectionVJLive() {
 		std::vector<Rect> faces;
 		face_cascade.detectMultiScale(gray, faces, 1.1, 2, 0, Size(60, 60));
 
-		// Desenăm ROI-ul de antrenament pentru previzualizare
+		// desenarea roiului pe web-cam
 		for (const auto& face_rect : faces) {
 			Point center(face_rect.x + face_rect.width * 0.5, face_rect.y + face_rect.height * 0.5);
 			float scale_x = 0.6f;
@@ -785,7 +795,7 @@ void faceDetectionVJLive() {
 		imshow("Live: Antrenament", frame_copy);
 
 		char key = (char)waitKey(1);
-		if (key == 27) return; // Ieșire completă la ESC
+		if (key == 27) return; 
 
 		if ((key == 'c' || key == 'C') && !faces.empty()) {
 			Rect face_rect = faces[0];
@@ -808,11 +818,11 @@ void faceDetectionVJLive() {
 			framesCaptured++;
 			printf("Cadru %d capturat!\n", framesCaptured);
 
-			if (framesCaptured >= train_limit) break; // Finalizare faza captura
+			if (framesCaptured >= train_limit) break;
 		}
 	}
 
-	// Calculare model după captură
+
 	computeMeanDevFromHist(histc_u, histFiltrat_u, med_u, dev_u);
 	computeMeanDevFromHist(histc_v, histFiltrat_v, med_v, dev_v);
 	trained = true;
@@ -826,8 +836,8 @@ void faceDetectionVJLive() {
 	waitKey(0);
 	destroyAllWindows();
 
-	// --- ETAPA 2: VALIDARE LIVE ---
-	// Redeschidem camera (sau continuăm pe același obiect cap)
+
+
 	printf("Incepere VALIDARE LIVE... Apasati 'ESC' pentru a inchide.\n");
 
 	while (cap.read(frame)) {
@@ -857,8 +867,8 @@ void faceDetectionVJLive() {
 					uchar u_val = u_channel.at<uchar>(safe_rect.y + i, safe_rect.x + j);
 					uchar v_val = v_channel.at<uchar>(safe_rect.y + i, safe_rect.x + j);
 
-					bool is_skin_u = (u_val >= (med_u - k_factor * dev_u)) && (u_val <= (med_u + k_factor * dev_u)); // [cite: 201]
-					bool is_skin_v = (v_val >= (med_v - k_factor * dev_v)) && (v_val <= (med_v + k_factor * dev_v)); // [cite: 201]
+					bool is_skin_u = (u_val >= (med_u - k_factor * dev_u)) && (u_val <= (med_u + k_factor * dev_u));
+					bool is_skin_v = (v_val >= (med_v - k_factor * dev_v)) && (v_val <= (med_v + k_factor * dev_v)); 
 
 					if (is_skin_u) maskU.at<uchar>(i, j) = 255;
 					if (is_skin_v) maskV.at<uchar>(i, j) = 255;
@@ -867,13 +877,22 @@ void faceDetectionVJLive() {
 			}
 
 			Mat element = getStructuringElement(MORPH_RECT, Size(3, 3));
-			// Eroziune - Dilatare - Eroziune [cite: 235, 240, 246]
-			auto post = [&](Mat& m) {
-				erode(m, m, element, Point(-1, -1), 1);
-				dilate(m, m, element, Point(-1, -1), 2);
-				erode(m, m, element, Point(-1, -1), 1);
-				};
-			post(maskU); post(maskV); post(maskBoth);
+			
+
+			erode(maskU, maskU, element, Point(-1, -1), 1);
+			dilate(maskU, maskU, element, Point(-1, -1), 2);
+			erode(maskU, maskU, element, Point(-1, -1), 1);
+
+			erode(maskV, maskV, element, Point(-1, -1), 1);
+			dilate(maskV, maskV, element, Point(-1, -1), 2);
+			erode(maskV, maskV, element, Point(-1, -1), 1);
+
+			erode(maskBoth, maskBoth, element, Point(-1, -1), 1);
+			dilate(maskBoth, maskBoth, element, Point(-1, -1), 2);
+			erode(maskBoth, maskBoth, element, Point(-1, -1), 1);
+
+
+
 
 			for (int i = 0; i < safe_rect.height; ++i) {
 				for (int j = 0; j < safe_rect.width; ++j) {
@@ -885,8 +904,26 @@ void faceDetectionVJLive() {
 
 			rectangle(resU, safe_rect, Scalar(255, 0, 255), 2);
 			rectangle(resV, safe_rect, Scalar(255, 0, 255), 2);
+
+
 			double ratio = (double)countNonZero(maskBoth) / safe_rect.area();
-			rectangle(resBoth, safe_rect, (ratio > 0.45) ? Scalar(0, 255, 0) : Scalar(0, 0, 255), 2);
+			double percentage = ratio * 100.0;
+
+			bool isValid = (ratio > 0.45);
+			Scalar colorStatus = isValid ? Scalar(0, 255, 0) : Scalar(0, 0, 255);
+			String label = isValid ? "VALID" : "INVALID";
+			rectangle(resBoth, safe_rect, colorStatus, 2);
+
+			
+			char infoText[100];
+			sprintf(infoText, "%s: %.1f%%", label.c_str(), percentage);
+
+			
+			Point textPos(safe_rect.x, safe_rect.y - 10);
+			if (textPos.y < 20) textPos.y = safe_rect.y + 20;
+
+			
+			putText(resBoth, infoText, textPos, FONT_HERSHEY_SIMPLEX, 0.6, colorStatus, 2);
 		}
 
 		imshow("Live: Validare U", resU);
@@ -926,7 +963,7 @@ int main()
 		printf(" 12 - Mouse callback demo\n");
 		printf(" 13 - OpenCV labeling\n");
 		printf(" 99 - VJ model Luv - STATIC\n");
-		printf(" 99 - VJ model Luv - WebCam\n");
+		printf(" 999 - VJ model Luv - WebCam\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d",&op);
@@ -973,9 +1010,9 @@ int main()
 				break;
 			case 99:
 				faceDetectionVJStatic();
+				break;
 			case 999:
 				faceDetectionVJLive();
-			
 				break;
 		}
 	}
