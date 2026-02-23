@@ -626,7 +626,7 @@ void faceDetectionVJStatic() {
 	cv::glob(test_folder, test_files, false);
 
 
-	for (const String& testFilename : file_list) {
+	for (const String& testFilename : test_files) {
 		Mat frame_test = imread(testFilename);
 		if (frame_test.empty()) continue;
 
